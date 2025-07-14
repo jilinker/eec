@@ -17,6 +17,23 @@
 package org.ttzero.excel.entity;
 
 
+import static org.ttzero.excel.manager.Const.ROW_BLOCK_SIZE;
+import static org.ttzero.excel.util.StringUtil.isEmpty;
+import static org.ttzero.excel.util.StringUtil.isNotEmpty;
+
+import java.awt.Color;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.ttzero.excel.entity.e7.XMLWorksheetWriter;
@@ -34,24 +51,6 @@ import org.ttzero.excel.manager.RelManager;
 import org.ttzero.excel.reader.Cell;
 import org.ttzero.excel.reader.Dimension;
 import org.ttzero.excel.util.FileUtil;
-
-import java.awt.Color;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiConsumer;
-
-import static org.ttzero.excel.manager.Const.ROW_BLOCK_SIZE;
-import static org.ttzero.excel.util.StringUtil.isEmpty;
-import static org.ttzero.excel.util.StringUtil.isNotEmpty;
 
 /**
  * 工作表Worksheet是Excel最重要的组件，在Excel看见的所有内容都是由Worksheet工作表呈现。
@@ -1319,20 +1318,28 @@ public abstract class Sheet implements Cloneable, Storable {
      * @return Excel列标识
      */
     public static char[] int2Col(int n) {
-        char[] c;
+        if(n >= cache.length){
+            return calcColChar(n);
+        }
+        return cache[n];
+    }
+
+    private static char[] calcColChar(int n) {
         char A = 'A';
         if (n <= 26) {
-            c = cache[0];
+            char[] c = new char[1];
             c[0] = (char) (n - 1 + A);
+            return c;
         } else if (n <= 702) {
             int t = n / 26, w = n % 26;
             if (w == 0) {
                 t--;
                 w = 26;
             }
-            c = cache[1];
+            char[] c = new char[2];
             c[0] = (char) (t - 1 + A);
             c[1] = (char) (w - 1 + A);
+            return c;
         } else {
             int tt = n / 26, t = tt / 26, w = n % 26, m = tt % 26;
             if (w == 0) {
@@ -1343,15 +1350,21 @@ public abstract class Sheet implements Cloneable, Storable {
                 t--;
                 m += 26;
             }
-            c = cache[2];
+            char[] c = new char[3];
             c[0] = (char) (t - 1 + A);
             c[1] = (char) (m - 1 + A);
             c[2] = (char) (w - 1 + A);
+            return c;
         }
-        return c;
     }
 
-    private static final char[][] cache = new char[][]{ {65}, {65, 65}, {65, 65, 65} };
+    private static final char[][] cache = new char[200][];
+
+    static {
+        for (int i = 0; i < 200; i++) {
+            cache[i] = calcColChar(i);
+        }
+    }
 
     /**
      * 忽略表头，调用此方法后表头将不会输出到Excel中，注意这里不是隐藏
